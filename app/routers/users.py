@@ -1,13 +1,14 @@
 from fastapi import APIRouter, HTTPException
-from app.models.user import UserRegister, User, UserOut, UserInDB
+from app.models.user import UserRegister, User, UserLogin, UserInDB
 from typing import List
 from app.utils.password import hash_password
 from datetime import datetime
 from app.db.mongo import users_collection
 from app.models.user import UserUpdate
 from bson import ObjectId
+from passlib.context import CryptContext
 router = APIRouter()
-
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 db_users: List[User] = []
 user_id_counter = 1  # simulamos un autoincremento
 
@@ -116,3 +117,14 @@ async def delete_user(user_id: str):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al eliminar usuario: {str(e)}")
+
+@router.post("/login")
+async def login_user(login_data: UserLogin):
+    user = await users_collection.find_one({"correo": login_data.correo})
+    if not user:
+        raise HTTPException(status_code=401, detail="Usuario no encontrado")
+
+    if not pwd_context.verify(login_data.contrasena, user["hashed_password"]):
+        raise HTTPException(status_code=401, detail="Contraseña incorrecta")
+
+    return {"user_id": str(user["_id"])}

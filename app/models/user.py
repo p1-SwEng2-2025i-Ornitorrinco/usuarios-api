@@ -15,8 +15,8 @@ class User(BaseModel):
     
 
 class UserLogin(BaseModel):
-    email: EmailStr
-    password: str
+    correo: EmailStr
+    contrasena: str
 
 class UserRegister(BaseModel):
     nombres: str
@@ -33,7 +33,7 @@ class UserRegister(BaseModel):
 
 class UserOut(BaseModel):
     nombre: str
-    email: EmailStr
+    correo: EmailStr
 
 #  Modelo interno (no se expone al cliente)
 class UserInDB(User):
@@ -43,7 +43,7 @@ class UserUpdate(BaseModel):
     nombres: Optional[str] = None
     apellidos: Optional[str] = None
     fecha_nacimiento: Optional[str] = None
-    correo: Optional[str] = None
+    correo: Optional[EmailStr] = None
     codigo_barrio: Optional[str] = None
     telefono: Optional[str] = None
     direccion: Optional[str] = None
