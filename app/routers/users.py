@@ -128,3 +128,25 @@ async def login_user(login_data: UserLogin):
         raise HTTPException(status_code=401, detail="Contraseña incorrecta")
 
     return {"user_id": str(user["_id"])}
+
+@router.get("/users/{user_id}/nombre_completo")
+async def get_nombre_completo_usuario(user_id: str):
+    try:
+        if not ObjectId.is_valid(user_id):
+            raise HTTPException(status_code=400, detail="ID inválido")
+
+        user = await users_collection.find_one(
+            {"_id": ObjectId(user_id)},
+            {"nombres": 1, "apellidos": 1}
+        )
+
+        if not user:
+            raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+        nombre_completo = f"{user['nombres']} {user['apellidos']}"
+        return {
+            "nombre_completo": nombre_completo
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al obtener nombre del usuario: {str(e)}")
