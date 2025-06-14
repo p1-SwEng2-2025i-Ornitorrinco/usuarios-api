@@ -32,11 +32,11 @@ pip install -r requirements.txt
 
 4. Ejecuta el servidor:
 ```bash
-uvicorn main:app --reload
+uvicorn app.main:app --reload --port 8001
 ```
 
 ## Documentación
-- Visita `http://127.0.0.1:8000/docs` para Swagger UI.
+- Visita `http://127.0.0.1:8001/docs` para Swagger UI.
 
 ## Estructura de carpetas
 ```
