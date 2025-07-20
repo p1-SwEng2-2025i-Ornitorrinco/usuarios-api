@@ -253,7 +253,9 @@ async def get_info_publicaciones(user_id: str):
                 "apellidos": 1,
                 "reputacion": 1,
                 "telefono": 1,
-                "direccion": 1
+                "correo": 1,
+                "direccion": 1,
+                "foto_url": 1
             }
         )
 
@@ -265,7 +267,9 @@ async def get_info_publicaciones(user_id: str):
             "nombre_completo": f"{user['nombres']} {user['apellidos']}",
             "reputacion": user.get("reputacion", 0.0),
             "telefono": user.get("telefono"),
-            "direccion": user.get("direccion")
+            "correo": user.get("correo"),
+            "direccion": user.get("direccion"),
+            "foto_url": user.get("foto_url")
         }
 
     except Exception as e:
@@ -295,3 +299,47 @@ async def get_reputacion_usuario(user_id: str):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al obtener reputación: {str(e)}")
+
+@router.get("/users/{user_id}/nombre_foto")
+async def get_user_name_and_photo(user_id: str):
+    try:
+        if not ObjectId.is_valid(user_id):
+            raise HTTPException(status_code=400, detail="ID de usuario inválido")
+
+        user = await users_collection.find_one(
+            {"_id": ObjectId(user_id)},
+            {"nombres": 1, "apellidos": 1, "foto_url": 1}
+        )
+
+        if not user:
+            raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+        nombre_completo = f"{user.get('nombres', '')} {user.get('apellidos', '')}".strip()
+
+        return {
+            "nombre_completo": nombre_completo,
+            "foto_url": user.get("foto_url")
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al obtener nombre y foto del usuario: {str(e)}")
+    
+@router.get("/users/{user_id}/foto")
+async def get_user_photo(user_id: str):
+    try:
+        if not ObjectId.is_valid(user_id):
+            raise HTTPException(status_code=400, detail="ID de usuario inválido")
+
+        user = await users_collection.find_one(
+            {"_id": ObjectId(user_id)},
+            {"foto_url": 1}
+        )
+
+        if not user:
+            raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+        return {
+            "foto_url": user.get("foto_url", "https://cdn-icons-png.flaticon.com/512/847/847969.png")  # Valor por defecto
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al obtener foto del usuario: {str(e)}")
