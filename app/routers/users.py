@@ -56,7 +56,8 @@ async def update_user(
     telefono: Optional[str] = Form(None),
     direccion: Optional[str] = Form(None),
     descripcion_habilidades: Optional[str] = Form(None),
-    foto: UploadFile = File(None)
+    foto: UploadFile = File(None),
+    reputacion: Optional[float] = Form(None)
 ):
     try:
         if not ObjectId.is_valid(user_id):
@@ -74,6 +75,8 @@ async def update_user(
             update_data["direccion"] = direccion
         if descripcion_habilidades is not None:
             update_data["descripcion_habilidades"] = descripcion_habilidades
+        if reputacion is not None:
+            update_data["reputacion"] = reputacion
 
         # Guardar la nueva foto si se envía
         if foto:
@@ -216,6 +219,7 @@ async def get_perfil_usuario(user_id: str):
                 "foto_url": 1,
                 "reputacion": 1,
                 "telefono": 1,
+                "correo": 1,
                 "direccion": 1
             }
         )
@@ -229,6 +233,7 @@ async def get_perfil_usuario(user_id: str):
             "foto_url": user.get("foto_url"),
             "reputacion": user.get("reputacion", 0.0),
             "telefono": user.get("telefono"),
+            "correo": user.get("correo"),
             "direccion": user.get("direccion")
         }
 
