@@ -148,7 +148,8 @@ async def register_user(
         "foto_url": foto_url,
         "hashed_password": hash_password(contrasena),
         "created_at": datetime.today(),
-        "reputacion": 0.0  # Nuevo campo
+        "reputacion": 0.0,  # Nuevo campo
+        "saldo_creditos": 0.0
     }
 
     result = await users_collection.insert_one(user_dict)
@@ -220,7 +221,8 @@ async def get_perfil_usuario(user_id: str):
                 "reputacion": 1,
                 "telefono": 1,
                 "correo": 1,
-                "direccion": 1
+                "direccion": 1,
+                "saldo_creditos": 1
             }
         )
 
@@ -234,7 +236,8 @@ async def get_perfil_usuario(user_id: str):
             "reputacion": user.get("reputacion", 0.0),
             "telefono": user.get("telefono"),
             "correo": user.get("correo"),
-            "direccion": user.get("direccion")
+            "direccion": user.get("direccion"),
+            "saldo_creditos": user.get("saldo_creditos")
         }
 
     except Exception as e:
