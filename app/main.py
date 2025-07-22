@@ -4,13 +4,14 @@ from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware  # 🔴 Importar CORS
 from app.routers import users
+from fastapi.staticfiles import StaticFiles
 
 app = FastAPI(title="API de Usuarios")
 
 # 🔵 Añadir middleware de CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],  
+    allow_origins=["*"],  
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -18,6 +19,7 @@ app.add_middleware(
 
 # 🔵 Incluir las rutas del módulo de usuarios
 app.include_router(users.router)
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 @app.get("/")
 def root():

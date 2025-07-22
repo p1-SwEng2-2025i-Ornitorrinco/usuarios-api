@@ -1,12 +1,14 @@
 from fastapi import APIRouter, HTTPException
 from app.models.user import UserRegister, User, UserLogin, UserInDB
-from typing import List
+from typing import List,Optional
 from app.utils.password import hash_password
 from datetime import datetime
 from app.db.mongo import users_collection
 from app.models.user import UserUpdate
 from bson import ObjectId
 from passlib.context import CryptContext
+from fastapi import UploadFile, File, Form
+import os
 router = APIRouter()
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 db_users: List[User] = []
@@ -44,63 +46,114 @@ async def get_all_users():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al obtener usuarios: {str(e)}")
 
+from fastapi import Form, UploadFile, File
+
 @router.put("/users/{user_id}")
-async def update_user(user_id: str, user_update: UserUpdate):
+async def update_user(
+    user_id: str,
+    nombres: Optional[str] = Form(None),
+    apellidos: Optional[str] = Form(None),
+    telefono: Optional[str] = Form(None),
+    direccion: Optional[str] = Form(None),
+    descripcion_habilidades: Optional[str] = Form(None),
+    foto: UploadFile = File(None),
+    reputacion: Optional[float] = Form(None)
+):
     try:
-        # Validar que el ID sea válido
         if not ObjectId.is_valid(user_id):
             raise HTTPException(status_code=400, detail="ID inválido")
 
-        # Convertir el body en un diccionario y eliminar campos nulos
-        update_data = {k: v for k, v in user_update.dict().items() if v is not None}
+        update_data = {}
+
+        if nombres is not None:
+            update_data["nombres"] = nombres
+        if apellidos is not None:
+            update_data["apellidos"] = apellidos
+        if telefono is not None:
+            update_data["telefono"] = telefono
+        if direccion is not None:
+            update_data["direccion"] = direccion
+        if descripcion_habilidades is not None:
+            update_data["descripcion_habilidades"] = descripcion_habilidades
+        if reputacion is not None:
+            update_data["reputacion"] = reputacion
+
+        # Guardar la nueva foto si se envía
+        if foto:
+            ruta_foto = f"app/static/perfiles/{user_id}_{foto.filename}"
+            with open(ruta_foto, "wb") as f:
+                contenido = await foto.read()
+                f.write(contenido)
+            update_data["foto_url"] = f"/static/perfiles/{user_id}_{foto.filename}"
 
         if not update_data:
             raise HTTPException(status_code=400, detail="No hay campos para actualizar")
 
-        result =await users_collection.update_one(
+        result = await users_collection.update_one(
             {"_id": ObjectId(user_id)},
             {"$set": update_data}
         )
 
         if result.matched_count == 0:
             raise HTTPException(status_code=404, detail="Usuario no encontrado")
-        print("Resultado update_one:", result.raw_result)
+
         return {"message": "Usuario actualizado correctamente"}
+
     except Exception as e:
-        print(f" ERROR AL ACTUALIZAR USUARIO: {e}") 
         raise HTTPException(status_code=500, detail=f"Error interno: {str(e)}")
 
-@router.post("/users/register", response_model=User)
-async def register_user(new_user: UserRegister):
-    # Validar que las contraseñas coincidan
-    if new_user.contrasena != new_user.confirmar_contrasena:
+
+@router.post("/users/register")
+async def register_user(
+    nombres: str = Form(...),
+    apellidos: str = Form(...),
+    fecha_nacimiento: str = Form(...),
+    correo: str = Form(...),
+    codigo_barrio: str = Form(...),
+    telefono: str = Form(...),
+    direccion: str = Form(...),
+    contrasena: str = Form(...),
+    confirmar_contrasena: str = Form(...),
+    descripcion_habilidades: str = Form(None),
+    foto: UploadFile = File(None)
+    
+):
+    if contrasena != confirmar_contrasena:
         raise HTTPException(status_code=400, detail="Las contraseñas no coinciden")
 
-    # Verificar si ya existe el correo en la base de datos
-    existing_user = await users_collection.find_one({"correo": new_user.correo})
+    existing_user = await users_collection.find_one({"correo": correo})
     if existing_user:
         raise HTTPException(status_code=400, detail="Correo ya registrado")
 
-    # Crear el nuevo usuario
+    # Guardar la imagen si se envió
+    if foto:
+        ruta_foto = f"app/static/perfiles/{correo}_{foto.filename}"
+        with open(ruta_foto, "wb") as f:
+            contenido = await foto.read()
+            f.write(contenido)
+        foto_url = f"/static/perfiles/{correo}_{foto.filename}"
+    else:
+        foto_url = "https://cdn-icons-png.flaticon.com/512/847/847969.png"
+
+    # Crear el usuario
     user_dict = {
-        "nombres": new_user.nombres,
-        "apellidos": new_user.apellidos,
-        "fecha_nacimiento": new_user.fecha_nacimiento,
-        "correo": new_user.correo,
-        "codigo_barrio": new_user.codigo_barrio,
-        "telefono": new_user.telefono,
-        "direccion": new_user.direccion,
-        "descripcion_habilidades": new_user.descripcion_habilidades,
-        "hashed_password": hash_password(new_user.contrasena),
-        "created_at": datetime.today()
+        "nombres": nombres,
+        "apellidos": apellidos,
+        "fecha_nacimiento": fecha_nacimiento,
+        "correo": correo,
+        "codigo_barrio": codigo_barrio,
+        "telefono": telefono,
+        "direccion": direccion,
+        "descripcion_habilidades": descripcion_habilidades,
+        "foto_url": foto_url,
+        "hashed_password": hash_password(contrasena),
+        "created_at": datetime.today(),
+        "reputacion": 0.0  # Nuevo campo
     }
 
-    # Insertar en la base de datos
     result = await users_collection.insert_one(user_dict)
-
-    # Retornar los datos del nuevo usuario (sin la contraseña)
     user_dict["id"] = str(result.inserted_id)
-    return User(**user_dict)
+    return {"message": "Usuario registrado correctamente", "id": user_dict["id"]}
 
 @router.delete("/users/{user_id}")
 async def delete_user(user_id: str):
@@ -137,7 +190,7 @@ async def get_nombre_completo_usuario(user_id: str):
 
         user = await users_collection.find_one(
             {"_id": ObjectId(user_id)},
-            {"nombres": 1, "apellidos": 1}
+            {"nombres": 1, "apellidos": 1,"foto_url": 1}
         )
 
         if not user:
@@ -145,8 +198,148 @@ async def get_nombre_completo_usuario(user_id: str):
 
         nombre_completo = f"{user['nombres']} {user['apellidos']}"
         return {
-            "nombre_completo": nombre_completo
+            "nombre_completo": nombre_completo,
+            "foto_url": user.get("foto_url")
         }
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al obtener nombre del usuario: {str(e)}")
+    
+@router.get("/users/{user_id}/perfil")
+async def get_perfil_usuario(user_id: str):
+    try:
+        if not ObjectId.is_valid(user_id):
+            raise HTTPException(status_code=400, detail="ID inválido")
+
+        user = await users_collection.find_one(
+            {"_id": ObjectId(user_id)},
+            {
+                "nombres": 1,
+                "apellidos": 1,
+                "foto_url": 1,
+                "reputacion": 1,
+                "telefono": 1,
+                "correo": 1,
+                "direccion": 1
+            }
+        )
+
+        if not user:
+            raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+        user["_id"] = str(user["_id"])
+        return {
+            "nombre_completo": f"{user['nombres']} {user['apellidos']}",
+            "foto_url": user.get("foto_url"),
+            "reputacion": user.get("reputacion", 0.0),
+            "telefono": user.get("telefono"),
+            "correo": user.get("correo"),
+            "direccion": user.get("direccion")
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al obtener perfil: {str(e)}")
+
+@router.get("/users/{user_id}/publicaciones")
+async def get_info_publicaciones(user_id: str):
+    try:
+        if not ObjectId.is_valid(user_id):
+            raise HTTPException(status_code=400, detail="ID inválido")
+
+        user = await users_collection.find_one(
+            {"_id": ObjectId(user_id)},
+            {
+                "nombres": 1,
+                "apellidos": 1,
+                "reputacion": 1,
+                "telefono": 1,
+                "correo": 1,
+                "direccion": 1,
+                "foto_url": 1
+            }
+        )
+
+        if not user:
+            raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+        user["_id"] = str(user["_id"])
+        return {
+            "nombre_completo": f"{user['nombres']} {user['apellidos']}",
+            "reputacion": user.get("reputacion", 0.0),
+            "telefono": user.get("telefono"),
+            "correo": user.get("correo"),
+            "direccion": user.get("direccion"),
+            "foto_url": user.get("foto_url")
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al obtener información: {str(e)}")
+
+@router.get("/users/{user_id}/reputacion")
+async def get_reputacion_usuario(user_id: str):
+    try:
+        if not ObjectId.is_valid(user_id):
+            raise HTTPException(status_code=400, detail="ID inválido")
+
+        user = await users_collection.find_one(
+            {"_id": ObjectId(user_id)},
+            {
+                "foto_url": 1,
+                "reputacion": 1
+            }
+        )
+
+        if not user:
+            raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+        return {
+            "foto_url": user.get("foto_url"),
+            "reputacion": user.get("reputacion", 0.0)
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al obtener reputación: {str(e)}")
+
+@router.get("/users/{user_id}/nombre_foto")
+async def get_user_name_and_photo(user_id: str):
+    try:
+        if not ObjectId.is_valid(user_id):
+            raise HTTPException(status_code=400, detail="ID de usuario inválido")
+
+        user = await users_collection.find_one(
+            {"_id": ObjectId(user_id)},
+            {"nombres": 1, "apellidos": 1, "foto_url": 1}
+        )
+
+        if not user:
+            raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+        nombre_completo = f"{user.get('nombres', '')} {user.get('apellidos', '')}".strip()
+
+        return {
+            "nombre_completo": nombre_completo,
+            "foto_url": user.get("foto_url")
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al obtener nombre y foto del usuario: {str(e)}")
+    
+@router.get("/users/{user_id}/foto")
+async def get_user_photo(user_id: str):
+    try:
+        if not ObjectId.is_valid(user_id):
+            raise HTTPException(status_code=400, detail="ID de usuario inválido")
+
+        user = await users_collection.find_one(
+            {"_id": ObjectId(user_id)},
+            {"foto_url": 1}
+        )
+
+        if not user:
+            raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+        return {
+            "foto_url": user.get("foto_url", "https://cdn-icons-png.flaticon.com/512/847/847969.png")  # Valor por defecto
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al obtener foto del usuario: {str(e)}")

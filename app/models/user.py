@@ -12,6 +12,9 @@ class User(BaseModel):
     telefono: str
     direccion: str
     descripcion_habilidades: Optional[str] = None
+    foto_url: Optional[str] = None
+    reputacion: Optional[float] = 0.0  # Nuevo campo
+
     
 
 class UserLogin(BaseModel):
@@ -29,6 +32,8 @@ class UserRegister(BaseModel):
     contrasena: str
     confirmar_contrasena: str
     descripcion_habilidades: Optional[str] = None
+    foto_url: Optional[str] = None
+    reputacion: Optional[float] = 0.0  # Nuevo campo
     
 
 class UserOut(BaseModel):
@@ -50,3 +55,5 @@ class UserUpdate(BaseModel):
     contrasena: Optional[str] = None
     confirmar_contrasena: Optional[str] = None
     descripcion_habilidades: Optional[str] = None
+    foto_url: Optional[str] = None
+    reputacion: Optional[float] = 0.0  # Nuevo campo
