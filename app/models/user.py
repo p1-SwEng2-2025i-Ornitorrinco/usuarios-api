@@ -14,7 +14,7 @@ class User(BaseModel):
     descripcion_habilidades: Optional[str] = None
     foto_url: Optional[str] = None
     reputacion: Optional[float] = 0.0  # Nuevo campo
-
+    saldo_creditos: float = 0.0 #nuevo campo saldo creditos
     
 
 class UserLogin(BaseModel):
@@ -34,6 +34,7 @@ class UserRegister(BaseModel):
     descripcion_habilidades: Optional[str] = None
     foto_url: Optional[str] = None
     reputacion: Optional[float] = 0.0  # Nuevo campo
+    saldo_creditos: float = 0.0 #nuevo campo saldo creditos
     
 
 class UserOut(BaseModel):
@@ -57,3 +58,4 @@ class UserUpdate(BaseModel):
     descripcion_habilidades: Optional[str] = None
     foto_url: Optional[str] = None
     reputacion: Optional[float] = 0.0  # Nuevo campo
+    saldo_creditos: float = 0.0 #nuevo campo saldo creditos
